@@ -468,17 +468,15 @@ export function issueRoutes(db: Db, storage: StorageService) {
       (req.body.assigneeAgentId !== undefined && req.body.assigneeAgentId !== existing.assigneeAgentId) ||
       (req.body.assigneeUserId !== undefined && req.body.assigneeUserId !== existing.assigneeUserId);
 
-    const isAgentReturningIssueToCreator =
+    // Allow current assignee agent to hand off the task to any other
+    // member in the same company (agent→agent, agent→user).
+    const isCurrentAssigneeAgentHandoff =
       req.actor.type === "agent" &&
       !!req.actor.agentId &&
-      existing.assigneeAgentId === req.actor.agentId &&
-      req.body.assigneeAgentId === null &&
-      typeof req.body.assigneeUserId === "string" &&
-      !!existing.createdByUserId &&
-      req.body.assigneeUserId === existing.createdByUserId;
+      existing.assigneeAgentId === req.actor.agentId;
 
     if (assigneeWillChange) {
-      if (!isAgentReturningIssueToCreator) {
+      if (!isCurrentAssigneeAgentHandoff) {
         await assertCanAssignTasks(req, existing.companyId);
       }
     }
