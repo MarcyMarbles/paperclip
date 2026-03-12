@@ -30,6 +30,7 @@ import { webhookRoutes } from "./routes/webhooks.js";
 import { webhookIngestionRoutes } from "./routes/webhook-ingestion.js";
 import { gitRoutes } from "./routes/git.js";
 import { killSwitchRoutes } from "./routes/kill-switch.js";
+import { applyUiBranding } from "./ui-branding.js";
 import type { BetterAuthSessionResult } from "./auth/better-auth.js";
 
 type UiMode = "none" | "static" | "vite-dev";
@@ -38,6 +39,7 @@ export async function createApp(
   db: Db,
   opts: {
     uiMode: UiMode;
+    serverPort: number;
     storageService: StorageService;
     deploymentMode: DeploymentMode;
     deploymentExposure: DeploymentExposure;
@@ -148,7 +150,7 @@ export async function createApp(
     ];
     const uiDist = candidates.find((p) => fs.existsSync(path.join(p, "index.html")));
     if (uiDist) {
-      const indexHtml = fs.readFileSync(path.join(uiDist, "index.html"), "utf-8");
+      const indexHtml = applyUiBranding(fs.readFileSync(path.join(uiDist, "index.html"), "utf-8"));
       app.use(express.static(uiDist));
       app.get(/.*/, (_req, res) => {
         res.status(200).set("Content-Type", "text/html").end(indexHtml);
@@ -160,12 +162,18 @@ export async function createApp(
 
   if (opts.uiMode === "vite-dev") {
     const uiRoot = path.resolve(__dirname, "../../ui");
+    const hmrPort = opts.serverPort + 10000;
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       root: uiRoot,
       appType: "spa",
       server: {
         middlewareMode: true,
+        hmr: {
+          host: opts.bindHost,
+          port: hmrPort,
+          clientPort: hmrPort,
+        },
         allowedHosts: privateHostnameGateEnabled ? Array.from(privateHostnameAllowSet) : undefined,
       },
     });
@@ -175,7 +183,7 @@ export async function createApp(
       try {
         const templatePath = path.resolve(uiRoot, "index.html");
         const template = fs.readFileSync(templatePath, "utf-8");
-        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        const html = applyUiBranding(await vite.transformIndexHtml(req.originalUrl, template));
         res.status(200).set({ "Content-Type": "text/html" }).end(html);
       } catch (err) {
         next(err);

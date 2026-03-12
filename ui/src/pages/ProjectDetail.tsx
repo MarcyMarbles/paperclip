@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation, Navigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PROJECT_COLORS, isUuidLike } from "@paperclipai/shared";
@@ -13,11 +13,12 @@ import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
-import { ProjectProperties } from "../components/ProjectProperties";
+import { ProjectProperties, type ProjectConfigFieldKey, type ProjectFieldSaveState } from "../components/ProjectProperties";
 import { InlineEditor } from "../components/InlineEditor";
 import { StatusBadge } from "../components/StatusBadge";
 import { IssuesList } from "../components/IssuesList";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PageTabBar } from "../components/PageTabBar";
 import { projectRouteRef, cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +26,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SlidersHorizontal, Plug, Pencil, Trash2, GitBranch, FolderGit2 } from "lucide-react";
 import { WorkspaceGitControl } from "../components/WorkspaceGitControl";
+import { Tabs } from "@/components/ui/tabs";
 
 /* ── Top-level tab types ── */
 
-type ProjectTab = "overview" | "list" | "git";
+type ProjectTab = "overview" | "list" | "git" | "configuration";
 
 function resolveProjectTab(pathname: string, projectId: string): ProjectTab | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -36,6 +38,7 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
   if (projectsIdx === -1 || segments[projectsIdx + 1] !== projectId) return null;
   const tab = segments[projectsIdx + 2];
   if (tab === "overview") return "overview";
+  if (tab === "configuration") return "configuration";
   if (tab === "issues") return "list";
   if (tab === "git") return "git";
   return null;
@@ -302,12 +305,14 @@ export function ProjectDetail() {
     filter?: string;
   }>();
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
-  const { openPanel, closePanel, panelVisible, setPanelVisible } = usePanel();
+  const { closePanel } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
-  const [mobilePropsOpen, setMobilePropsOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const [fieldSaveStates, setFieldSaveStates] = useState<Partial<Record<ProjectConfigFieldKey, ProjectFieldSaveState>>>({});
+  const fieldSaveRequestIds = useRef<Partial<Record<ProjectConfigFieldKey, number>>>({});
+  const fieldSaveTimers = useRef<Partial<Record<ProjectConfigFieldKey, ReturnType<typeof setTimeout>>>>({});
   const routeProjectRef = projectId ?? "";
   const routeCompanyId = useMemo(() => {
     if (!companyPrefix) return null;
@@ -368,6 +373,10 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/overview`, { replace: true });
       return;
     }
+    if (activeTab === "configuration") {
+      navigate(`/projects/${canonicalProjectRef}/configuration`, { replace: true });
+      return;
+    }
     if (activeTab === "list") {
       if (filter) {
         navigate(`/projects/${canonicalProjectRef}/issues/${filter}`, { replace: true });
@@ -384,11 +393,52 @@ export function ProjectDetail() {
   }, [project, routeProjectRef, canonicalProjectRef, activeTab, filter, navigate]);
 
   useEffect(() => {
-    if (project) {
-      openPanel(<ProjectProperties project={project} onUpdate={(data) => updateProject.mutate(data)} />);
-    }
+    closePanel();
     return () => closePanel();
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [closePanel]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(fieldSaveTimers.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+    };
+  }, []);
+
+  const setFieldState = useCallback((field: ProjectConfigFieldKey, state: ProjectFieldSaveState) => {
+    setFieldSaveStates((current) => ({ ...current, [field]: state }));
+  }, []);
+
+  const scheduleFieldReset = useCallback((field: ProjectConfigFieldKey, delayMs: number) => {
+    const existing = fieldSaveTimers.current[field];
+    if (existing) clearTimeout(existing);
+    fieldSaveTimers.current[field] = setTimeout(() => {
+      setFieldSaveStates((current) => {
+        const next = { ...current };
+        delete next[field];
+        return next;
+      });
+      delete fieldSaveTimers.current[field];
+    }, delayMs);
+  }, []);
+
+  const updateProjectField = useCallback(async (field: ProjectConfigFieldKey, data: Record<string, unknown>) => {
+    const requestId = (fieldSaveRequestIds.current[field] ?? 0) + 1;
+    fieldSaveRequestIds.current[field] = requestId;
+    setFieldState(field, "saving");
+    try {
+      await projectsApi.update(projectLookupRef, data, resolvedCompanyId ?? lookupCompanyId);
+      invalidateProject();
+      if (fieldSaveRequestIds.current[field] !== requestId) return;
+      setFieldState(field, "saved");
+      scheduleFieldReset(field, 1800);
+    } catch (error) {
+      if (fieldSaveRequestIds.current[field] !== requestId) return;
+      setFieldState(field, "error");
+      scheduleFieldReset(field, 3000);
+      throw error;
+    }
+  }, [invalidateProject, lookupCompanyId, projectLookupRef, resolvedCompanyId, scheduleFieldReset, setFieldState]);
 
   // Redirect bare /projects/:id to /projects/:id/issues
   if (routeProjectRef && activeTab === null) {
@@ -404,6 +454,8 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/overview`);
     } else if (tab === "git") {
       navigate(`/projects/${canonicalProjectRef}/git`);
+    } else if (tab === "configuration") {
+      navigate(`/projects/${canonicalProjectRef}/configuration`);
     } else {
       navigate(`/projects/${canonicalProjectRef}/issues`);
     }
@@ -426,67 +478,22 @@ export function ProjectDetail() {
           as="h2"
           className="text-xl font-bold"
         />
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="ml-auto md:hidden shrink-0"
-          onClick={() => setMobilePropsOpen(true)}
-          title="Properties"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className={cn(
-            "shrink-0 ml-auto transition-opacity duration-200 hidden md:flex",
-            panelVisible ? "opacity-0 pointer-events-none w-0 overflow-hidden" : "opacity-100",
-          )}
-          onClick={() => setPanelVisible(true)}
-          title="Show properties"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Top-level project tabs */}
-      <div className="flex items-center gap-1 border-b border-border">
-        <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "overview"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => handleTabChange("overview")}
-        >
-          Overview
-        </button>
-        <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "list"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => handleTabChange("list")}
-        >
-          List
-        </button>
-        {hasGitWorkspaces && (
-          <button
-            className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
-              activeTab === "git"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => handleTabChange("git")}
-          >
-            <GitBranch className="h-3.5 w-3.5" />
-            Git
-          </button>
-        )}
-      </div>
+      <Tabs value={activeTab ?? "list"} onValueChange={(value) => handleTabChange(value as ProjectTab)}>
+        <PageTabBar
+          items={[
+            { value: "overview", label: "Overview" },
+            { value: "list", label: "List" },
+            ...(hasGitWorkspaces ? [{ value: "git", label: "Git" }] : []),
+            { value: "configuration", label: "Configuration" },
+          ]}
+          align="start"
+          value={activeTab ?? "list"}
+          onValueChange={(value) => handleTabChange(value as ProjectTab)}
+        />
+      </Tabs>
 
-      {/* Tab content */}
       {activeTab === "overview" && (
         <>
           <OverviewContent
@@ -531,19 +538,16 @@ export function ProjectDetail() {
         </div>
       )}
 
-      {/* Mobile properties drawer */}
-      <Sheet open={mobilePropsOpen} onOpenChange={setMobilePropsOpen}>
-        <SheetContent side="bottom" className="max-h-[85dvh] pb-[env(safe-area-inset-bottom)]">
-          <SheetHeader>
-            <SheetTitle className="text-sm">Properties</SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="flex-1 overflow-y-auto">
-            <div className="px-4 pb-4">
-              <ProjectProperties project={project} onUpdate={(data) => updateProject.mutate(data)} />
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+      {activeTab === "configuration" && (
+        <div className="max-w-4xl">
+          <ProjectProperties
+            project={project}
+            onUpdate={(data) => updateProject.mutate(data)}
+            onFieldUpdate={updateProjectField}
+            getFieldSaveState={(field) => fieldSaveStates[field] ?? "idle"}
+          />
+        </div>
+      )}
     </div>
   );
 }
