@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback, useRef } from "react";
+import { useEffect, useMemo, useCallback, useRef, useState } from "react";
 import { useSearchParams } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { issuesApi } from "../api/issues";
@@ -67,10 +67,18 @@ export function Issues() {
     setBreadcrumbs([{ label: "Issues" }]);
   }, [setBreadcrumbs]);
 
+  const [showHidden, setShowHidden] = useState(false);
+
   const { data: issues, isLoading, error } = useQuery({
     queryKey: queryKeys.issues.list(selectedCompanyId!),
     queryFn: () => issuesApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && !showHidden,
+  });
+
+  const { data: hiddenIssues, isLoading: isLoadingHidden, error: errorHidden } = useQuery({
+    queryKey: queryKeys.issues.listHidden(selectedCompanyId!),
+    queryFn: () => issuesApi.list(selectedCompanyId!, { includeHidden: true }),
+    enabled: !!selectedCompanyId && showHidden,
   });
 
   const updateIssue = useMutation({
@@ -78,6 +86,7 @@ export function Issues() {
       issuesApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(selectedCompanyId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues.listHidden(selectedCompanyId!) });
     },
   });
 
@@ -87,9 +96,9 @@ export function Issues() {
 
   return (
     <IssuesList
-      issues={issues ?? []}
-      isLoading={isLoading}
-      error={error as Error | null}
+      issues={(showHidden ? hiddenIssues : issues) ?? []}
+      isLoading={showHidden ? isLoadingHidden : isLoading}
+      error={(showHidden ? errorHidden : error) as Error | null}
       agents={agents}
       liveIssueIds={liveIssueIds}
       viewStateKey="paperclip:issues-view"
@@ -97,6 +106,8 @@ export function Issues() {
       initialSearch={initialSearch}
       onSearchChange={handleSearchChange}
       onUpdateIssue={(id, data) => updateIssue.mutate({ id, data })}
+      showHidden={showHidden}
+      onToggleHidden={() => setShowHidden((prev) => !prev)}
     />
   );
 }

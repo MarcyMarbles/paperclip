@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   agents,
@@ -55,6 +55,7 @@ export interface IssueFilters {
   projectId?: string;
   labelId?: string;
   q?: string;
+  includeHidden?: boolean;
 }
 
 type IssueRow = typeof issues.$inferSelect;
@@ -476,7 +477,11 @@ export function issueService(db: Db) {
           )!,
         );
       }
-      conditions.push(isNull(issues.hiddenAt));
+      if (filters?.includeHidden) {
+        conditions.push(isNotNull(issues.hiddenAt));
+      } else {
+        conditions.push(isNull(issues.hiddenAt));
+      }
 
       const priorityOrder = sql`CASE ${issues.priority} WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END`;
       const searchOrder = sql<number>`

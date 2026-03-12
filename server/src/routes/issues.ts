@@ -232,6 +232,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       projectId: req.query.projectId as string | undefined,
       labelId: req.query.labelId as string | undefined,
       q: req.query.q as string | undefined,
+      includeHidden: req.query.includeHidden === "true",
     });
     res.json(result);
   });

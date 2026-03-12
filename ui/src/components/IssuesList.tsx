@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search } from "lucide-react";
+import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search, EyeOff } from "lucide-react";
 import { KanbanBoard } from "./KanbanBoard";
 import type { Issue } from "@paperclipai/shared";
 
@@ -146,6 +146,8 @@ interface IssuesListProps {
   initialSearch?: string;
   onSearchChange?: (search: string) => void;
   onUpdateIssue: (id: string, data: Record<string, unknown>) => void;
+  showHidden?: boolean;
+  onToggleHidden?: () => void;
 }
 
 export function IssuesList({
@@ -160,6 +162,8 @@ export function IssuesList({
   initialSearch,
   onSearchChange,
   onUpdateIssue,
+  showHidden,
+  onToggleHidden,
 }: IssuesListProps) {
   const { selectedCompanyId } = useCompany();
   const { openNewIssue } = useDialog();
@@ -301,6 +305,20 @@ export function IssuesList({
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          {/* Hidden issues toggle */}
+          {onToggleHidden && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("text-xs", showHidden && "text-amber-600 dark:text-amber-400")}
+              onClick={onToggleHidden}
+              title={showHidden ? "Show visible issues" : "Show hidden issues"}
+            >
+              <EyeOff className="h-3.5 w-3.5 sm:h-3 sm:w-3 sm:mr-1" />
+              <span className="hidden sm:inline">{showHidden ? "Hidden" : "Hidden"}</span>
+            </Button>
+          )}
+
           {/* View mode toggle */}
           <div className="flex items-center border border-border rounded-md overflow-hidden mr-1">
             <button
@@ -541,10 +559,10 @@ export function IssuesList({
 
       {!isLoading && filtered.length === 0 && viewState.viewMode === "list" && (
         <EmptyState
-          icon={CircleDot}
-          message="No issues match the current filters or search."
-          action="Create Issue"
-          onAction={() => openNewIssue(newIssueDefaults())}
+          icon={showHidden ? EyeOff : CircleDot}
+          message={showHidden ? "No hidden issues." : "No issues match the current filters or search."}
+          action={showHidden ? undefined : "Create Issue"}
+          onAction={showHidden ? undefined : () => openNewIssue(newIssueDefaults())}
         />
       )}
 
