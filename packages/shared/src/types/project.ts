@@ -35,6 +35,8 @@ export interface Project {
   leadAgentId: string | null;
   targetDate: string | null;
   color: string | null;
+  issuePrefix: string | null;
+  issueCounter: number;
   executionWorkspacePolicy: ProjectExecutionWorkspacePolicy | null;
   workspaces: ProjectWorkspace[];
   primaryWorkspace: ProjectWorkspace | null;

@@ -8,6 +8,7 @@ import { dashboardApi } from "../api/dashboard";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
+import { projectsApi } from "../api/projects";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
@@ -328,6 +329,18 @@ export function Inbox() {
     queryFn: () => heartbeatsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+
+  const { data: projectsList } = useQuery({
+    queryKey: queryKeys.projects.list(selectedCompanyId!),
+    queryFn: () => projectsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
+  const projectById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    for (const p of projectsList ?? []) map.set(p.id, { id: p.id, name: p.name, color: p.color });
+    return map;
+  }, [projectsList]);
 
   const touchedIssues = useMemo(() => getRecentTouchedIssues(touchedIssuesRaw), [touchedIssuesRaw]);
   const unreadTouchedIssues = useMemo(
@@ -810,55 +823,92 @@ export function Inbox() {
         <>
           {showSeparatorBefore("issues_i_touched") && <Separator />}
           <div>
-            <div>
-              {(tab === "unread" ? unreadTouchedIssues : touchedIssues).map((issue) => {
-                const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
-                const isFading = fadingOutIssues.has(issue.id);
+            {(() => {
+              const displayedIssues = tab === "unread" ? unreadTouchedIssues : touchedIssues;
+              // Group issues by projectId
+              const groups: { projectId: string | null; issues: typeof displayedIssues }[] = [];
+              const groupMap = new Map<string | null, typeof displayedIssues>();
+              for (const issue of displayedIssues) {
+                const key = issue.projectId ?? null;
+                let arr = groupMap.get(key);
+                if (!arr) {
+                  arr = [];
+                  groupMap.set(key, arr);
+                  groups.push({ projectId: key, issues: arr });
+                }
+                arr.push(issue);
+              }
+
+              return groups.map((group) => {
+                const project = group.projectId ? projectById.get(group.projectId) : null;
                 return (
-                  <IssueRow
-                    key={issue.id}
-                    issue={issue}
-                    issueLinkState={issueLinkState}
-                    desktopMetaLeading={(
-                      <>
-                        <span className="hidden sm:inline-flex">
-                          <PriorityIcon priority={issue.priority} />
-                        </span>
-                        <span className="hidden shrink-0 sm:inline-flex">
-                          <StatusIcon status={issue.status} />
-                        </span>
-                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                          {issue.identifier ?? issue.id.slice(0, 8)}
-                        </span>
-                        {liveIssueIds.has(issue.id) && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 sm:gap-1.5 sm:px-2">
-                            <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-                            </span>
-                            <span className="hidden text-[11px] font-medium text-blue-600 dark:text-blue-400 sm:inline">
-                              Live
-                            </span>
-                          </span>
+                  <div key={group.projectId ?? "__none"}>
+                    {groups.length > 1 && (
+                      <div className="flex items-center gap-2 px-4 py-1.5">
+                        {project?.color && (
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: project.color }}
+                          />
                         )}
-                      </>
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {project?.name ?? "No project"}
+                        </span>
+                      </div>
                     )}
-                    mobileMeta={
-                      issue.lastExternalCommentAt
-                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
-                        : `updated ${timeAgo(issue.updatedAt)}`
-                    }
-                    unreadState={isUnread ? "visible" : isFading ? "fading" : "hidden"}
-                    onMarkRead={() => markReadMutation.mutate(issue.id)}
-                    trailingMeta={
-                      issue.lastExternalCommentAt
-                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
-                        : `updated ${timeAgo(issue.updatedAt)}`
-                    }
-                  />
+                    <div>
+                      {group.issues.map((issue) => {
+                        const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
+                        const isFading = fadingOutIssues.has(issue.id);
+                        return (
+                          <IssueRow
+                            key={issue.id}
+                            issue={issue}
+                            issueLinkState={issueLinkState}
+                            desktopMetaLeading={(
+                              <>
+                                <span className="hidden sm:inline-flex">
+                                  <PriorityIcon priority={issue.priority} />
+                                </span>
+                                <span className="hidden shrink-0 sm:inline-flex">
+                                  <StatusIcon status={issue.status} />
+                                </span>
+                                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                                  {issue.identifier ?? issue.id.slice(0, 8)}
+                                </span>
+                                {liveIssueIds.has(issue.id) && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 sm:gap-1.5 sm:px-2">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-75" />
+                                      <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                                    </span>
+                                    <span className="hidden text-[11px] font-medium text-blue-600 dark:text-blue-400 sm:inline">
+                                      Live
+                                    </span>
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            mobileMeta={
+                              issue.lastExternalCommentAt
+                                ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
+                                : `updated ${timeAgo(issue.updatedAt)}`
+                            }
+                            unreadState={isUnread ? "visible" : isFading ? "fading" : "hidden"}
+                            onMarkRead={() => markReadMutation.mutate(issue.id)}
+                            trailingMeta={
+                              issue.lastExternalCommentAt
+                                ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
+                                : `updated ${timeAgo(issue.updatedAt)}`
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
-              })}
-            </div>
+              });
+            })()}
           </div>
         </>
       )}

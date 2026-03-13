@@ -670,14 +670,34 @@ export function issueService(db: Db) {
               parseProjectExecutionWorkspacePolicy(project?.executionWorkspacePolicy),
             ) as Record<string, unknown> | null;
         }
-        const [company] = await tx
-          .update(companies)
-          .set({ issueCounter: sql`${companies.issueCounter} + 1` })
-          .where(eq(companies.id, companyId))
-          .returning({ issueCounter: companies.issueCounter, issuePrefix: companies.issuePrefix });
+        // If the issue belongs to a project with its own prefix, use that; otherwise fall back to company
+        let issueNumber: number;
+        let identifier: string;
+        const projectWithPrefix = issueData.projectId
+          ? await tx
+              .select({ issuePrefix: projects.issuePrefix, issueCounter: projects.issueCounter })
+              .from(projects)
+              .where(and(eq(projects.id, issueData.projectId), eq(projects.companyId, companyId)))
+              .then((rows) => rows[0] ?? null)
+          : null;
 
-        const issueNumber = company.issueCounter;
-        const identifier = `${company.issuePrefix}-${issueNumber}`;
+        if (projectWithPrefix?.issuePrefix) {
+          const [updated] = await tx
+            .update(projects)
+            .set({ issueCounter: sql`${projects.issueCounter} + 1` })
+            .where(eq(projects.id, issueData.projectId!))
+            .returning({ issueCounter: projects.issueCounter, issuePrefix: projects.issuePrefix });
+          issueNumber = updated.issueCounter;
+          identifier = `${updated.issuePrefix}-${issueNumber}`;
+        } else {
+          const [company] = await tx
+            .update(companies)
+            .set({ issueCounter: sql`${companies.issueCounter} + 1` })
+            .where(eq(companies.id, companyId))
+            .returning({ issueCounter: companies.issueCounter, issuePrefix: companies.issuePrefix });
+          issueNumber = company.issueCounter;
+          identifier = `${company.issuePrefix}-${issueNumber}`;
+        }
 
         const values = {
           ...issueData,

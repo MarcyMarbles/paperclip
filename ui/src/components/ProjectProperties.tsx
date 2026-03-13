@@ -41,6 +41,7 @@ export type ProjectConfigFieldKey =
   | "name"
   | "description"
   | "status"
+  | "issue_prefix"
   | "goals"
   | "execution_workspace_enabled"
   | "execution_workspace_default_mode"
@@ -406,6 +407,22 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
             />
           ) : (
             <StatusBadge status={project.status} />
+          )}
+        </PropertyRow>
+        <PropertyRow label={<FieldLabel label="Issue Code" state={fieldState("issue_prefix")} />}>
+          {onUpdate || onFieldUpdate ? (
+            <DraftInput
+              value={project.issuePrefix ?? ""}
+              onCommit={(value) => {
+                const cleaned = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+                commitField("issue_prefix", { issuePrefix: cleaned || null });
+              }}
+              immediate
+              className="w-24 rounded border border-border bg-transparent px-2 py-1 text-sm font-mono uppercase outline-none"
+              placeholder="e.g. BACK"
+            />
+          ) : (
+            <span className="text-sm font-mono">{project.issuePrefix ?? "None"}</span>
           )}
         </PropertyRow>
         {project.leadAgentId && (

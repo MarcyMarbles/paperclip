@@ -67,6 +67,7 @@ const projectFields = {
   leadAgentId: z.string().uuid().optional().nullable(),
   targetDate: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
+  issuePrefix: z.string().min(2).max(5).regex(/^[A-Z]+$/).optional().nullable(),
   executionWorkspacePolicy: projectExecutionWorkspacePolicySchema.optional().nullable(),
   archivedAt: z.string().datetime().optional().nullable(),
 };

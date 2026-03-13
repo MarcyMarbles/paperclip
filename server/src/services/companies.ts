@@ -50,11 +50,25 @@ export function companyService(db: Db) {
       && constraint === "companies_issue_prefix_idx";
   }
 
+  async function isIssuePrefixUsedByProject(prefix: string) {
+    const row = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.issuePrefix, prefix))
+      .then((rows) => rows[0] ?? null);
+    return row !== null;
+  }
+
   async function createCompanyWithUniquePrefix(data: typeof companies.$inferInsert) {
     const base = deriveIssuePrefixBase(data.name);
     let suffix = 1;
     while (suffix < 10000) {
       const candidate = `${base}${suffixForAttempt(suffix)}`;
+      // Also check that no project uses this prefix
+      if (await isIssuePrefixUsedByProject(candidate)) {
+        suffix += 1;
+        continue;
+      }
       try {
         const rows = await db
           .insert(companies)

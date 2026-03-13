@@ -58,6 +58,7 @@ export function NewProjectDialog() {
   const [workspaceLocalPath, setWorkspaceLocalPath] = useState("");
   const [workspaceRepoUrl, setWorkspaceRepoUrl] = useState("");
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [issuePrefix, setIssuePrefix] = useState("");
 
   const [statusOpen, setStatusOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
@@ -91,8 +92,13 @@ export function NewProjectDialog() {
     setWorkspaceSetup("none");
     setWorkspaceLocalPath("");
     setWorkspaceRepoUrl("");
+    setIssuePrefix("");
     setWorkspaceError(null);
   }
+
+  const deriveIssuePrefix = (projectName: string) => {
+    return projectName.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+  };
 
   const isAbsolutePath = (value: string) => value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
 
@@ -156,6 +162,7 @@ export function NewProjectDialog() {
         color: PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
         ...(goalIds.length > 0 ? { goalIds } : {}),
         ...(targetDate ? { targetDate } : {}),
+        ...(issuePrefix.trim() ? { issuePrefix: issuePrefix.trim() } : {}),
       });
 
       const workspacePayloads: Array<Record<string, unknown>> = [];
@@ -254,7 +261,12 @@ export function NewProjectDialog() {
             className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
             placeholder="Project name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (!issuePrefix || issuePrefix === deriveIssuePrefix(name)) {
+                setIssuePrefix(deriveIssuePrefix(e.target.value));
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Tab" && !e.shiftKey) {
                 e.preventDefault();
@@ -452,6 +464,18 @@ export function NewProjectDialog() {
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
               placeholder="Target date"
+            />
+          </div>
+
+          {/* Issue prefix / project code */}
+          <div className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs">
+            <span className="text-muted-foreground">Code</span>
+            <input
+              className="bg-transparent outline-none text-xs w-14 font-mono uppercase"
+              value={issuePrefix}
+              onChange={(e) => setIssuePrefix(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5))}
+              placeholder="ABC"
+              maxLength={5}
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, date, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, date, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { companies } from "./companies.js";
 import { goals } from "./goals.js";
 import { agents } from "./agents.js";
@@ -15,6 +15,8 @@ export const projects = pgTable(
     leadAgentId: uuid("lead_agent_id").references(() => agents.id),
     targetDate: date("target_date"),
     color: text("color"),
+    issuePrefix: text("issue_prefix"),
+    issueCounter: integer("issue_counter").notNull().default(0),
     executionWorkspacePolicy: jsonb("execution_workspace_policy").$type<Record<string, unknown>>(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -22,5 +24,7 @@ export const projects = pgTable(
   },
   (table) => ({
     companyIdx: index("projects_company_idx").on(table.companyId),
+    issuePrefixUniqueIdx: uniqueIndex("projects_issue_prefix_idx")
+      .on(table.issuePrefix),
   }),
 );

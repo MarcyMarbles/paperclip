@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { projects, projectGoals, goals, projectWorkspaces, workspaceRuntimeServices } from "@paperclipai/db";
+import { projects, projectGoals, goals, projectWorkspaces, workspaceRuntimeServices, companies } from "@paperclipai/db";
 import {
   PROJECT_COLORS,
   deriveProjectUrlKey,
@@ -321,6 +321,34 @@ async function ensureSinglePrimaryWorkspace(
     );
 }
 
+async function assertIssuePrefixAvailable(
+  db: Db,
+  prefix: string,
+  excludeProjectId?: string,
+) {
+  // Check companies
+  const companyConflict = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.issuePrefix, prefix))
+    .then((rows) => rows[0] ?? null);
+  if (companyConflict) {
+    throw new Error(`Issue prefix "${prefix}" is already used by a company`);
+  }
+  // Check other projects
+  const projectQuery = excludeProjectId
+    ? and(eq(projects.issuePrefix, prefix), ne(projects.id, excludeProjectId))
+    : eq(projects.issuePrefix, prefix);
+  const projectConflict = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(projectQuery)
+    .then((rows) => rows[0] ?? null);
+  if (projectConflict) {
+    throw new Error(`Issue prefix "${prefix}" is already used by another project`);
+  }
+}
+
 export function projectService(db: Db) {
   return {
     list: async (companyId: string): Promise<ProjectWithGoals[]> => {
@@ -357,10 +385,15 @@ export function projectService(db: Db) {
 
     create: async (
       companyId: string,
-      data: Omit<typeof projects.$inferInsert, "companyId"> & { goalIds?: string[] },
+      data: Omit<typeof projects.$inferInsert, "companyId"> & { goalIds?: string[]; issuePrefix?: string | null },
     ): Promise<ProjectWithGoals> => {
       const { goalIds: inputGoalIds, ...projectData } = data;
       const ids = resolveGoalIds({ goalIds: inputGoalIds, goalId: projectData.goalId });
+
+      // Validate issuePrefix uniqueness if provided
+      if (projectData.issuePrefix) {
+        await assertIssuePrefixAvailable(db, projectData.issuePrefix);
+      }
 
       // Auto-assign a color from the palette if none provided
       if (!projectData.color) {
@@ -396,10 +429,16 @@ export function projectService(db: Db) {
 
     update: async (
       id: string,
-      data: Partial<typeof projects.$inferInsert> & { goalIds?: string[] },
+      data: Partial<typeof projects.$inferInsert> & { goalIds?: string[]; issuePrefix?: string | null },
     ): Promise<ProjectWithGoals | null> => {
       const { goalIds: inputGoalIds, ...projectData } = data;
       const ids = resolveGoalIds({ goalIds: inputGoalIds, goalId: projectData.goalId });
+
+      // Validate issuePrefix uniqueness if being set
+      if (projectData.issuePrefix) {
+        await assertIssuePrefixAvailable(db, projectData.issuePrefix, id);
+      }
+
       const existingProject = await db
         .select({ id: projects.id, companyId: projects.companyId, name: projects.name })
         .from(projects)
