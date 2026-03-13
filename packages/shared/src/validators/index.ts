@@ -153,6 +153,15 @@ export {
 } from "./webhook.js";
 
 export {
+  createBuildConfigSchema,
+  updateBuildConfigSchema,
+  triggerBuildSchema,
+  type CreateBuildConfig,
+  type UpdateBuildConfig,
+  type TriggerBuild,
+} from "./build.js";
+
+export {
   createCompanyInviteSchema,
   createOpenClawInvitePromptSchema,
   acceptInviteSchema,

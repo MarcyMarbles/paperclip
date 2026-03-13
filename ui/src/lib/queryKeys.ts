@@ -92,6 +92,12 @@ export const queryKeys = {
   killSwitch: {
     status: (companyId: string) => ["kill-switch", "status", companyId] as const,
   },
+  builds: {
+    allRuns: (companyId: string, status?: string) => ["builds", "all-runs", companyId, status] as const,
+    configs: (workspaceId: string) => ["builds", "configs", workspaceId] as const,
+    runs: (workspaceId: string) => ["builds", "runs", workspaceId] as const,
+    runDetail: (buildRunId: string) => ["builds", "run", buildRunId] as const,
+  },
   git: {
     status: (workspaceId: string) => ["git", "status", workspaceId] as const,
     log: (workspaceId: string) => ["git", "log", workspaceId] as const,

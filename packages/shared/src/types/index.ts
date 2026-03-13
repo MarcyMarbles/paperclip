@@ -109,3 +109,4 @@ export type {
   CompanyPortabilityExportRequest,
 } from "./company-portability.js";
 export type { KillSwitchProcessInfo, KillSwitchStatus, KillAllResult } from "./kill-switch.js";
+export type { BuildConfig, BuildRun } from "./build.js";

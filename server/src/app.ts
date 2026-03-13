@@ -30,6 +30,7 @@ import { webhookRoutes } from "./routes/webhooks.js";
 import { webhookIngestionRoutes } from "./routes/webhook-ingestion.js";
 import { gitRoutes } from "./routes/git.js";
 import { killSwitchRoutes } from "./routes/kill-switch.js";
+import { buildRoutes } from "./routes/builds.js";
 import { applyUiBranding } from "./ui-branding.js";
 import type { BetterAuthSessionResult } from "./auth/better-auth.js";
 
@@ -124,6 +125,7 @@ export async function createApp(
   api.use(webhookRoutes(db));
   api.use(gitRoutes(db));
   api.use(killSwitchRoutes(db));
+  api.use(buildRoutes(db));
   api.use(costRoutes(db));
   api.use(activityRoutes(db));
   api.use(dashboardRoutes(db));

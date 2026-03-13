@@ -39,3 +39,5 @@ export { webhookConfigs } from "./webhook_configs.js";
 export { webhookActionRules } from "./webhook_action_rules.js";
 export { webhookEventLog } from "./webhook_event_log.js";
 export { webhookIssueLinks } from "./webhook_issue_links.js";
+export { buildConfigs } from "./build_configs.js";
+export { buildRuns } from "./build_runs.js";

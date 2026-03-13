@@ -28,6 +28,8 @@ import { Webhooks } from "./pages/Webhooks";
 import { DesignGuide } from "./pages/DesignGuide";
 import { GitControl } from "./pages/GitControl";
 import { KillSwitch } from "./pages/KillSwitch";
+import { BuildDeploy } from "./pages/BuildDeploy";
+import { BuildDeployProject } from "./pages/BuildDeployProject";
 import { InstanceSettings } from "./pages/InstanceSettings";
 import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
@@ -120,6 +122,8 @@ function boardRoutes() {
       <Route path="company/mcp-servers" element={<McpServers />} />
       <Route path="company/webhooks" element={<Webhooks />} />
       <Route path="company/git" element={<GitControl />} />
+      <Route path="company/build-deploy" element={<BuildDeploy />} />
+      <Route path="company/build-deploy/:projectId" element={<BuildDeployProject />} />
       <Route path="company/kill-switch" element={<KillSwitch />} />
       <Route path="settings" element={<LegacySettingsRedirect />} />
       <Route path="settings/*" element={<LegacySettingsRedirect />} />
@@ -139,6 +143,7 @@ function boardRoutes() {
       <Route path="projects/:projectId/issues" element={<ProjectDetail />} />
       <Route path="projects/:projectId/issues/:filter" element={<ProjectDetail />} />
       <Route path="projects/:projectId/git" element={<ProjectDetail />} />
+      <Route path="projects/:projectId/builds" element={<ProjectDetail />} />
       <Route path="projects/:projectId/configuration" element={<ProjectDetail />} />
       <Route path="issues" element={<Issues />} />
       <Route path="issues/all" element={<Navigate to="/issues" replace />} />

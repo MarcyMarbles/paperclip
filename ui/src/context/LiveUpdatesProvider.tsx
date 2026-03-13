@@ -465,7 +465,37 @@ function handleLiveEvent(
 
   const nameOf = (id: string) => resolveAgentName(queryClient, expectedCompanyId, id);
   const payload = event.payload ?? {};
-  if (event.type === "heartbeat.run.log") {
+  if (event.type === "heartbeat.run.log" || event.type === "build.run.log") {
+    return;
+  }
+
+  if (event.type === "build.run.queued" || event.type === "build.run.status") {
+    queryClient.invalidateQueries({ queryKey: queryKeys.builds.allRuns(expectedCompanyId) });
+    const workspaceId = readString(payload.workspaceId);
+    if (workspaceId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.builds.runs(workspaceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.builds.configs(workspaceId) });
+    }
+    const buildRunId = readString(payload.buildRunId);
+    if (buildRunId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.builds.runDetail(buildRunId) });
+    }
+    if (event.type === "build.run.status") {
+      const status = readString(payload.status);
+      if (status && TERMINAL_RUN_STATUSES.has(status)) {
+        const command = readString(payload.command);
+        const tone = status === "succeeded" ? "success" : status === "cancelled" ? "warn" : "error";
+        const statusLabel = status === "succeeded" ? "succeeded" : status === "cancelled" ? "cancelled" : "failed";
+        const toast: ToastInput = {
+          title: `Build ${statusLabel}`,
+          body: command ? truncate(command, 80) : undefined,
+          tone,
+          ttlMs: status === "succeeded" ? 5000 : 7000,
+          dedupeKey: `build-status:${buildRunId}:${status}`,
+        };
+        gatedPushToast(gate, pushToast, "build-status", toast);
+      }
+    }
     return;
   }
 

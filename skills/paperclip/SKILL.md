@@ -288,6 +288,50 @@ Returns the MCP servers currently assigned to you. These are automatically avail
 | List agents                           | `GET /api/companies/:companyId/agents`                                                     |
 | Dashboard                             | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues                         | `GET /api/companies/:companyId/issues?q=search+term`                                       |
+| List build configs                    | `GET /api/builds/configs/:workspaceId`                                                     |
+| Create build config                   | `POST /api/builds/configs/:workspaceId`                                                    |
+| Trigger build                         | `POST /api/builds/:workspaceId/trigger`                                                    |
+| List build runs                       | `GET /api/builds/:workspaceId/runs`                                                        |
+| Cancel build                          | `POST /api/builds/runs/:buildRunId/cancel`                                                 |
+| Git status                            | `GET /api/git/:workspaceId/status`                                                         |
+| Git commit                            | `POST /api/git/:workspaceId/commit`                                                        |
+
+## Build System
+
+Projects with workspaces that have a `cwd` can have **build configurations** — named commands (e.g. `npm run build`, `make`, `docker build`) that can be triggered via API. Builds run in the workspace directory and stream logs in real time.
+
+### Setting up builds for a project
+
+1. Find the workspace ID from the project details (`GET /api/projects/:projectId` → `workspaces[].id`).
+2. Create a build config:
+
+```
+POST /api/builds/configs/:workspaceId
+{ "name": "Build", "command": "npm run build" }
+```
+
+Optional fields: `workingDir` (subdirectory relative to workspace cwd), `envVars` (object of key-value pairs), `timeoutMs` (default 300000 = 5 min, max 3600000).
+
+3. Trigger a build from config or ad-hoc:
+
+```
+POST /api/builds/:workspaceId/trigger
+{ "configId": "<config-id>" }
+// or ad-hoc:
+{ "command": "npm test" }
+```
+
+4. Check build status and results:
+
+```
+GET /api/builds/:workspaceId/runs
+GET /api/builds/runs/:buildRunId
+GET /api/builds/runs/:buildRunId/log?offset=0&limitBytes=256000
+```
+
+5. Cancel a running build: `POST /api/builds/runs/:buildRunId/cancel`
+
+Build statuses: `queued`, `running`, `succeeded`, `failed`, `cancelled`.
 
 ## Searching Issues
 

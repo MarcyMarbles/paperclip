@@ -218,6 +218,15 @@ export type WebhookEventStatus = (typeof WEBHOOK_EVENT_STATUSES)[number];
 export const WEBHOOK_EXTERNAL_TYPES = ["pull_request", "branch", "repository"] as const;
 export type WebhookExternalType = (typeof WEBHOOK_EXTERNAL_TYPES)[number];
 
+export const BUILD_RUN_STATUSES = [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const;
+export type BuildRunStatus = (typeof BUILD_RUN_STATUSES)[number];
+
 export const LIVE_EVENT_TYPES = [
   "heartbeat.run.queued",
   "heartbeat.run.status",
@@ -226,6 +235,9 @@ export const LIVE_EVENT_TYPES = [
   "agent.status",
   "activity.logged",
   "webhook.received",
+  "build.run.queued",
+  "build.run.status",
+  "build.run.log",
 ] as const;
 export type LiveEventType = (typeof LIVE_EVENT_TYPES)[number];
 

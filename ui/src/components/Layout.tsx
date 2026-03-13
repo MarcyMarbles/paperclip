@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Moon, Settings, Sun } from "lucide-react";
-import { Link, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
+import { Link, Navigate, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
 import { CompanyRail } from "./CompanyRail";
 import { Sidebar } from "./Sidebar";
 import { InstanceSidebar } from "./InstanceSidebar";
@@ -348,10 +348,24 @@ export function Layout() {
             )}
           >
             {hasUnknownCompanyPrefix ? (
-              <NotFoundPage
-                scope="invalid_company_prefix"
-                requestedPrefix={companyPrefix ?? selectedCompany?.issuePrefix}
-              />
+              (() => {
+                const fallback = selectedCompany ?? companies[0] ?? null;
+                if (fallback) {
+                  // Unknown prefix (e.g. project issue prefix) — redirect to the same
+                  // sub-path under the selected company so the page can still resolve.
+                  const rest = location.pathname.replace(
+                    new RegExp(`^/${companyPrefix}`),
+                    `/${fallback.issuePrefix}`,
+                  );
+                  return <Navigate to={`${rest}${location.search}${location.hash}`} replace />;
+                }
+                return (
+                  <NotFoundPage
+                    scope="invalid_company_prefix"
+                    requestedPrefix={companyPrefix ?? selectedCompany?.issuePrefix}
+                  />
+                );
+              })()
             ) : (
               <Outlet />
             )}

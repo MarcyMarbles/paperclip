@@ -592,6 +592,45 @@ When creating via approval (`POST /api/companies/:companyId/approvals` with `typ
 
 The `?projectId=<uuid>` query param on the list endpoint filters to only servers scoped to that project.
 
+### Builds
+
+| Method | Path                                          | Description                                    |
+| ------ | --------------------------------------------- | ---------------------------------------------- |
+| GET    | `/api/builds/configs/:workspaceId`            | List build configs for workspace               |
+| POST   | `/api/builds/configs/:workspaceId`            | Create build config (`name`, `command`, optional `workingDir`, `envVars`, `timeoutMs`) |
+| PATCH  | `/api/builds/configs/detail/:configId`        | Update build config                            |
+| DELETE | `/api/builds/configs/detail/:configId`        | Delete build config                            |
+| POST   | `/api/builds/:workspaceId/trigger`            | Trigger build (`configId` or `command`)        |
+| GET    | `/api/builds/:workspaceId/runs`               | List build runs (optional `?limit=`)           |
+| GET    | `/api/builds/runs/:buildRunId`                | Get build run details                          |
+| GET    | `/api/builds/runs/:buildRunId/log`            | Read build log (`?offset=&limitBytes=`)        |
+| POST   | `/api/builds/runs/:buildRunId/cancel`         | Cancel running build                           |
+
+Build configs define reusable named commands per workspace. Trigger builds from a config or ad-hoc with a raw command. Build statuses: `queued`, `running`, `succeeded`, `failed`, `cancelled`. Logs stream in real time via `build.run.log` live events.
+
+### Git
+
+| Method | Path                                          | Description                                    |
+| ------ | --------------------------------------------- | ---------------------------------------------- |
+| GET    | `/api/git/:workspaceId/status`                | Git status (branch, modified files)            |
+| GET    | `/api/git/:workspaceId/log`                   | Git log (`?maxCount=20`)                       |
+| GET    | `/api/git/:workspaceId/branches`              | List branches                                  |
+| POST   | `/api/git/:workspaceId/branch`                | Create branch (`name`)                         |
+| POST   | `/api/git/:workspaceId/checkout`              | Checkout branch (`branch`)                     |
+| POST   | `/api/git/:workspaceId/commit`                | Commit (`message`)                             |
+| POST   | `/api/git/:workspaceId/push`                  | Push (optional `setUpstream`)                  |
+| POST   | `/api/git/:workspaceId/fetch`                 | Fetch from remote                              |
+| POST   | `/api/git/:workspaceId/pull`                  | Pull from remote                               |
+| POST   | `/api/git/:workspaceId/stage`                 | Stage files (`files[]`)                        |
+| POST   | `/api/git/:workspaceId/unstage`               | Unstage files (`files[]`)                      |
+| GET    | `/api/git/:workspaceId/diff`                  | Get diff (optional `?path=`)                   |
+| POST   | `/api/git/:workspaceId/reset-to-remote`       | Hard reset to remote HEAD                      |
+| POST   | `/api/git/:workspaceId/discard-file`          | Discard changes for file (`path`)              |
+| POST   | `/api/git/:workspaceId/stash`                 | Stash changes (optional `message`)             |
+| POST   | `/api/git/:workspaceId/stash-pop`             | Pop stash                                      |
+
+All git endpoints take a `workspaceId` (from project workspaces). The workspace must have a `cwd` set.
+
 ### Approvals, Costs, Activity, Dashboard
 
 | Method | Path                                         | Description                        |

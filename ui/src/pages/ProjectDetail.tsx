@@ -24,13 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SlidersHorizontal, Plug, Pencil, Trash2, GitBranch, FolderGit2 } from "lucide-react";
+import { SlidersHorizontal, Plug, Pencil, Trash2, GitBranch, FolderGit2, Terminal } from "lucide-react";
 import { WorkspaceGitControl } from "../components/WorkspaceGitControl";
+import { BuildPanel } from "../components/BuildPanel";
 import { Tabs } from "@/components/ui/tabs";
 
 /* ── Top-level tab types ── */
 
-type ProjectTab = "overview" | "list" | "git" | "configuration";
+type ProjectTab = "overview" | "list" | "git" | "builds" | "configuration";
 
 function resolveProjectTab(pathname: string, projectId: string): ProjectTab | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -41,6 +42,7 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
   if (tab === "configuration") return "configuration";
   if (tab === "issues") return "list";
   if (tab === "git") return "git";
+  if (tab === "builds") return "builds";
   return null;
 }
 
@@ -389,6 +391,10 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/git`, { replace: true });
       return;
     }
+    if (activeTab === "builds") {
+      navigate(`/projects/${canonicalProjectRef}/builds`, { replace: true });
+      return;
+    }
     navigate(`/projects/${canonicalProjectRef}`, { replace: true });
   }, [project, routeProjectRef, canonicalProjectRef, activeTab, filter, navigate]);
 
@@ -454,6 +460,8 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/overview`);
     } else if (tab === "git") {
       navigate(`/projects/${canonicalProjectRef}/git`);
+    } else if (tab === "builds") {
+      navigate(`/projects/${canonicalProjectRef}/builds`);
     } else if (tab === "configuration") {
       navigate(`/projects/${canonicalProjectRef}/configuration`);
     } else {
@@ -486,6 +494,7 @@ export function ProjectDetail() {
             { value: "overview", label: "Overview" },
             { value: "list", label: "List" },
             ...(hasGitWorkspaces ? [{ value: "git", label: "Git" }] : []),
+            ...(hasGitWorkspaces ? [{ value: "builds", label: "Build & Deploy" }] : []),
             { value: "configuration", label: "Configuration" },
           ]}
           align="start"
@@ -532,6 +541,27 @@ export function ProjectDetail() {
                 </div>
                 <div className="px-3 py-3">
                   <WorkspaceGitControl workspace={workspace} compact />
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {activeTab === "builds" && project && (
+        <div className="space-y-4">
+          {project.workspaces
+            .filter((w) => w.cwd)
+            .map((workspace) => (
+              <div key={workspace.id} className="rounded-md border border-border">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
+                  <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">{workspace.name}</span>
+                  {workspace.isPrimary && (
+                    <Badge variant="secondary" className="text-[10px] font-normal">primary</Badge>
+                  )}
+                </div>
+                <div className="px-3 py-3">
+                  <BuildPanel workspaceId={workspace.id} />
                 </div>
               </div>
             ))}
