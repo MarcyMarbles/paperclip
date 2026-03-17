@@ -19,6 +19,7 @@ import {
 } from "@paperclipai/db";
 import {
   acceptInviteSchema,
+  approveJoinRequestSchema,
   claimJoinRequestApiKeySchema,
   createCompanyInviteSchema,
   createOpenClawInvitePromptSchema,
@@ -27,6 +28,7 @@ import {
   updateUserCompanyAccessSchema,
   PERMISSION_KEYS
 } from "@paperclipai/shared";
+import type { MembershipRole } from "@paperclipai/shared";
 import type { DeploymentExposure, DeploymentMode } from "@paperclipai/shared";
 import {
   forbidden,
@@ -42,7 +44,8 @@ import {
   agentService,
   deduplicateAgentName,
   logActivity,
-  notifyHireApproved
+  notifyHireApproved,
+  roleService,
 } from "../services/index.js";
 import { assertCompanyAccess } from "./authz.js";
 import {
@@ -1453,6 +1456,7 @@ export function accessRoutes(
   const router = Router();
   const access = accessService(db);
   const agents = agentService(db);
+  const roles = roleService(db);
 
   async function assertInstanceAdmin(req: Request) {
     if (req.actor.type !== "board") throw unauthorized();
@@ -1564,19 +1568,28 @@ export function accessRoutes(
     allowedJoinTypes: "human" | "agent" | "both";
     defaultsPayload?: Record<string, unknown> | null;
     agentMessage?: string | null;
+    membershipRole?: MembershipRole;
   }) {
     const normalizedAgentMessage =
       typeof input.agentMessage === "string"
         ? input.agentMessage.trim() || null
         : null;
+    let mergedPayload = mergeInviteDefaults(
+      input.defaultsPayload ?? null,
+      normalizedAgentMessage
+    );
+    // Embed membershipRole in defaultsPayload so it's available at approval time
+    if (input.membershipRole) {
+      mergedPayload = {
+        ...(mergedPayload as Record<string, unknown> ?? {}),
+        membershipRole: input.membershipRole,
+      } as typeof mergedPayload;
+    }
     const insertValues = {
       companyId: input.companyId,
       inviteType: "company_join" as const,
       allowedJoinTypes: input.allowedJoinTypes,
-      defaultsPayload: mergeInviteDefaults(
-        input.defaultsPayload ?? null,
-        normalizedAgentMessage
-      ),
+      defaultsPayload: mergedPayload,
       expiresAt: companyInviteExpiresAt(),
       invitedByUserId: input.req.actor.userId ?? null
     };
@@ -1645,7 +1658,8 @@ export function accessRoutes(
           companyId,
           allowedJoinTypes: req.body.allowedJoinTypes,
           defaultsPayload: req.body.defaultsPayload ?? null,
-          agentMessage: req.body.agentMessage ?? null
+          agentMessage: req.body.agentMessage ?? null,
+          membershipRole: req.body.membershipRole,
         });
 
       await logActivity(db, {
@@ -2267,6 +2281,7 @@ export function accessRoutes(
 
   router.post(
     "/companies/:companyId/join-requests/:requestId/approve",
+    validate(approveJoinRequestSchema),
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const requestId = req.params.requestId as string;
@@ -2293,6 +2308,13 @@ export function accessRoutes(
         .then((rows) => rows[0] ?? null);
       if (!invite) throw notFound("Invite not found");
 
+      // Resolve membership role: body override > invite defaults > "member"
+      const invitePayload = invite.defaultsPayload as Record<string, unknown> | null;
+      const resolvedRole: MembershipRole =
+        (req.body.membershipRole as MembershipRole) ??
+        (invitePayload?.membershipRole as MembershipRole) ??
+        "member";
+
       let createdAgentId: string | null = existing.createdAgentId ?? null;
       if (existing.requestType === "human") {
         if (!existing.requestingUserId)
@@ -2301,7 +2323,7 @@ export function accessRoutes(
           companyId,
           "user",
           existing.requestingUserId,
-          "member",
+          resolvedRole,
           "active"
         );
         const grants = grantsFromDefaults(
@@ -2586,6 +2608,20 @@ export function accessRoutes(
       res.json(removed);
     }
   );
+
+  router.get("/admin/users", async (req, res) => {
+    await assertInstanceAdmin(req);
+    const users = await db
+      .select({
+        id: authUsers.id,
+        name: authUsers.name,
+        email: authUsers.email,
+        createdAt: authUsers.createdAt,
+      })
+      .from(authUsers)
+      .orderBy(authUsers.createdAt);
+    res.json(users);
+  });
 
   router.get("/admin/users/:userId/company-access", async (req, res) => {
     await assertInstanceAdmin(req);

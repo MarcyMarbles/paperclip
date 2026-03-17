@@ -31,11 +31,13 @@ import { KillSwitch } from "./pages/KillSwitch";
 import { BuildDeploy } from "./pages/BuildDeploy";
 import { BuildDeployProject } from "./pages/BuildDeployProject";
 import { InstanceSettings } from "./pages/InstanceSettings";
+import { InstanceUsers } from "./pages/InstanceUsers";
 import { PluginManager } from "./pages/PluginManager";
 import { PluginSettings } from "./pages/PluginSettings";
 import { PluginPage } from "./pages/PluginPage";
 import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
+import { Members } from "./pages/Members";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -120,6 +122,7 @@ function boardRoutes() {
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
       <Route path="companies" element={<Companies />} />
+      <Route path="company/members" element={<Members />} />
       <Route path="company/settings" element={<CompanySettings />} />
       <Route path="company/jira" element={<JiraIntegration />} />
       <Route path="company/mcp-servers" element={<McpServers />} />
@@ -321,6 +324,7 @@ export function App() {
           <Route path="instance/settings" element={<Layout />}>
             <Route index element={<Navigate to="heartbeats" replace />} />
             <Route path="heartbeats" element={<InstanceSettings />} />
+            <Route path="users" element={<InstanceUsers />} />
             <Route path="plugins" element={<PluginManager />} />
             <Route path="plugins/:pluginId" element={<PluginSettings />} />
           </Route>

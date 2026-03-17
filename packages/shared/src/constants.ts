@@ -345,6 +345,27 @@ export const PERMISSION_KEYS = [
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
+export const MEMBERSHIP_ROLES = [
+  "owner",
+  "admin",
+  "manager",
+  "member",
+  "contributor",
+  "requester",
+] as const;
+export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
+export const AGENT_ACCESS_LEVELS = [
+  "none",
+  "request_only",
+  "assign",
+  "full",
+] as const;
+export type AgentAccessLevel = (typeof AGENT_ACCESS_LEVELS)[number];
+
+export const PROJECT_ACCESS_MODES = ["assigned", "all"] as const;
+export type ProjectAccessMode = (typeof PROJECT_ACCESS_MODES)[number];
+
 // ---------------------------------------------------------------------------
 // Plugin System — see doc/plugins/PLUGIN_SPEC.md for the full specification
 // ---------------------------------------------------------------------------

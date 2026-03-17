@@ -74,6 +74,10 @@ export type {
   Invite,
   JoinRequest,
   InstanceUserRoleGrant,
+  RolePermissions,
+  CompanyRole,
+  UserProjectAccess,
+  UserAgentAccess,
 } from "./access.js";
 export type { QuotaWindow, ProviderQuotaResult } from "./quota.js";
 export type {

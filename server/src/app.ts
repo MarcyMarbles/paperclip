@@ -32,6 +32,7 @@ import { gitRoutes } from "./routes/git.js";
 import { killSwitchRoutes } from "./routes/kill-switch.js";
 import { buildRoutes } from "./routes/builds.js";
 import { pluginRoutes } from "./routes/plugins.js";
+import { roleRoutes } from "./routes/roles.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
 import { applyUiBranding } from "./ui-branding.js";
 import { logger } from "./middleware/logger.js";
@@ -217,6 +218,7 @@ export async function createApp(
       { workerManager },
     ),
   );
+  api.use(roleRoutes(db));
   api.use(
     accessRoutes(db, {
       deploymentMode: opts.deploymentMode,

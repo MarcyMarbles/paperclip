@@ -1,13 +1,16 @@
 import type {
+  AgentAccessLevel,
   AgentAdapterType,
   InstanceUserRole,
   InviteJoinType,
   InviteType,
   JoinRequestStatus,
   JoinRequestType,
+  MembershipRole,
   MembershipStatus,
   PermissionKey,
   PrincipalType,
+  ProjectAccessMode,
 } from "../constants.js";
 
 export interface CompanyMembership {
@@ -78,4 +81,43 @@ export interface InstanceUserRoleGrant {
   role: InstanceUserRole;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface RolePermissions {
+  issues: { create: boolean; assign: boolean; manage: boolean };
+  projects: { access: ProjectAccessMode; manage: boolean };
+  agents: { interact: AgentAccessLevel; manage: boolean };
+  users: { invite: boolean; managePermissions: boolean };
+  company: { manage: boolean };
+}
+
+export interface CompanyRole {
+  id: string;
+  companyId: string;
+  name: MembershipRole;
+  displayName: string;
+  description: string | null;
+  permissions: RolePermissions;
+  isSystem: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserProjectAccess {
+  id: string;
+  companyId: string;
+  userId: string;
+  projectId: string;
+  grantedByUserId: string | null;
+  createdAt: Date;
+}
+
+export interface UserAgentAccess {
+  id: string;
+  companyId: string;
+  userId: string;
+  agentId: string;
+  accessLevel: AgentAccessLevel;
+  grantedByUserId: string | null;
+  createdAt: Date;
 }

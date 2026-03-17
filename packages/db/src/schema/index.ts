@@ -56,3 +56,6 @@ export { pluginEntities } from "./plugin_entities.js";
 export { pluginJobs, pluginJobRuns } from "./plugin_jobs.js";
 export { pluginWebhookDeliveries } from "./plugin_webhooks.js";
 export { pluginLogs } from "./plugin_logs.js";
+export { companyRoles } from "./company_roles.js";
+export { userProjectAccess } from "./user_project_access.js";
+export { userAgentAccess } from "./user_agent_access.js";

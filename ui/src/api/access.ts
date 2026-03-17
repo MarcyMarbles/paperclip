@@ -75,6 +75,68 @@ type CompanyInviteCreated = {
   inviteMessage?: string | null;
 };
 
+import type { CompanyMembership, CompanyRole, MembershipRole, AgentAccessLevel } from "@paperclipai/shared";
+
+type UserProjectAccessRow = { id: string; companyId: string; userId: string; projectId: string; grantedByUserId: string | null; createdAt: string };
+type UserAgentAccessRow = { id: string; companyId: string; userId: string; agentId: string; accessLevel: string; grantedByUserId: string | null; createdAt: string };
+type EffectivePermissions = { role: MembershipRole | null; permissions: Record<string, unknown> | null };
+
+export type RolePermissions = {
+  issues: { create: boolean; assign: boolean; manage: boolean };
+  projects: { access: "assigned" | "all"; manage: boolean };
+  agents: { interact: "none" | "request_only" | "assign" | "full"; manage: boolean };
+  users: { invite: boolean; managePermissions: boolean };
+  company: { manage: boolean };
+};
+
+export const rolesApi = {
+  listMembers: (companyId: string) =>
+    api.get<CompanyMembership[]>(`/companies/${companyId}/members`),
+
+  listRoles: (companyId: string) =>
+    api.get<CompanyRole[]>(`/companies/${companyId}/roles`),
+
+  seedRoles: (companyId: string) =>
+    api.post<CompanyRole[]>(`/companies/${companyId}/roles/seed`, {}),
+
+  createRole: (companyId: string, input: { name: string; displayName: string; description?: string | null; permissions: RolePermissions }) =>
+    api.post<CompanyRole>(`/companies/${companyId}/roles`, input),
+
+  updateRole: (companyId: string, roleId: string, input: { displayName?: string; description?: string | null; permissions?: RolePermissions }) =>
+    api.patch<CompanyRole>(`/companies/${companyId}/roles/${roleId}`, input),
+
+  deleteRole: (companyId: string, roleId: string) =>
+    api.delete<CompanyRole>(`/companies/${companyId}/roles/${roleId}`),
+
+  assignRole: (companyId: string, userId: string, membershipRole: MembershipRole) =>
+    api.patch<CompanyMembership>(`/companies/${companyId}/members/${userId}/role`, { membershipRole }),
+
+  getEffectivePermissions: (companyId: string, userId: string) =>
+    api.get<EffectivePermissions>(`/companies/${companyId}/members/${userId}/effective-permissions`),
+
+  listUserProjectAccess: (companyId: string, userId: string) =>
+    api.get<UserProjectAccessRow[]>(`/companies/${companyId}/members/${userId}/project-access`),
+
+  setUserProjectAccess: (companyId: string, userId: string, projectIds: string[]) =>
+    api.put<UserProjectAccessRow[]>(`/companies/${companyId}/project-access`, { userId, projectIds }),
+
+  listUserAgentAccess: (companyId: string, userId: string) =>
+    api.get<UserAgentAccessRow[]>(`/companies/${companyId}/members/${userId}/agent-access`),
+
+  setUserAgentAccess: (companyId: string, userId: string, grants: Array<{ agentId: string; accessLevel: AgentAccessLevel }>) =>
+    api.put<UserAgentAccessRow[]>(`/companies/${companyId}/agent-access`, { userId, grants }),
+};
+
+type AdminUser = { id: string; name: string | null; email: string; createdAt: string };
+
+export const adminApi = {
+  listUsers: () => api.get<AdminUser[]>("/admin/users"),
+  getUserCompanyAccess: (userId: string) =>
+    api.get<CompanyMembership[]>(`/admin/users/${userId}/company-access`),
+  setUserCompanyAccess: (userId: string, companyIds: string[]) =>
+    api.put<CompanyMembership[]>(`/admin/users/${userId}/company-access`, { companyIds }),
+};
+
 export const accessApi = {
   createCompanyInvite: (
     companyId: string,
@@ -82,6 +144,7 @@ export const accessApi = {
       allowedJoinTypes?: "human" | "agent" | "both";
       defaultsPayload?: Record<string, unknown> | null;
       agentMessage?: string | null;
+      membershipRole?: MembershipRole;
     } = {},
   ) =>
     api.post<CompanyInviteCreated>(`/companies/${companyId}/invites`, input),

@@ -58,12 +58,22 @@ export const queryKeys = {
     joinRequests: (companyId: string, status: string = "pending_approval") =>
       ["access", "join-requests", companyId, status] as const,
     invite: (token: string) => ["access", "invite", token] as const,
+    members: (companyId: string) => ["access", "members", companyId] as const,
+    roles: (companyId: string) => ["access", "roles", companyId] as const,
+    memberPermissions: (companyId: string, userId: string) =>
+      ["access", "member-permissions", companyId, userId] as const,
+    memberProjectAccess: (companyId: string, userId: string) =>
+      ["access", "member-project-access", companyId, userId] as const,
+    memberAgentAccess: (companyId: string, userId: string) =>
+      ["access", "member-agent-access", companyId, userId] as const,
   },
   auth: {
     session: ["auth", "session"] as const,
   },
   instance: {
     schedulerHeartbeats: ["instance", "scheduler-heartbeats"] as const,
+    users: ["instance", "users"] as const,
+    userCompanyAccess: (userId: string) => ["instance", "user-company-access", userId] as const,
   },
   health: ["health"] as const,
   secrets: {

@@ -15,6 +15,7 @@ import {
   companyPortabilityService,
   companyService,
   logActivity,
+  roleService,
 } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 
@@ -23,6 +24,7 @@ export function companyRoutes(db: Db) {
   const svc = companyService(db);
   const portability = companyPortabilityService(db);
   const access = accessService(db);
+  const roles = roleService(db);
   const budgets = budgetService(db);
 
   router.get("/", async (req, res) => {
@@ -120,6 +122,7 @@ export function companyRoutes(db: Db) {
     }
     const company = await svc.create(req.body);
     await access.ensureMembership(company.id, "user", req.actor.userId ?? "local-board", "owner", "active");
+    await roles.seedDefaultRoles(company.id);
     await logActivity(db, {
       companyId: company.id,
       actorType: "user",

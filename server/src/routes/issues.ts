@@ -24,6 +24,7 @@ import {
   documentService,
   logActivity,
   projectService,
+  roleService,
 } from "../services/index.js";
 import { logger } from "../middleware/logger.js";
 import { forbidden, HttpError, unauthorized } from "../errors.js";
@@ -37,6 +38,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
   const router = Router();
   const svc = issueService(db);
   const access = accessService(db);
+  const roles = roleService(db);
   const heartbeat = heartbeatService(db);
   const agentsSvc = agentService(db);
   const projectsSvc = projectService(db);
@@ -87,10 +89,23 @@ export function issueRoutes(db: Db, storage: StorageService) {
     return Boolean((agent.permissions as Record<string, unknown>).canCreateAgents);
   }
 
-  async function assertCanAssignTasks(req: Request, companyId: string) {
+  async function assertCanAssignTasks(req: Request, companyId: string, targetAgentId?: string) {
     assertCompanyAccess(req, companyId);
     if (req.actor.type === "board") {
       if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
+      // Check role-based permission first
+      if (req.actor.userId) {
+        const roleAllowed = await roles.canAssignIssues(companyId, req.actor.userId);
+        if (roleAllowed) {
+          // If assigning to a specific agent, also check agent-level access
+          if (targetAgentId) {
+            const canAssign = await roles.canAssignToAgent(companyId, req.actor.userId, targetAgentId);
+            if (!canAssign) throw forbidden("No assign access to this agent");
+          }
+          return;
+        }
+      }
+      // Fallback to legacy permission grants
       const allowed = await access.canUser(companyId, req.actor.userId, "tasks:assign");
       if (!allowed) throw forbidden("Missing permission: tasks:assign");
       return;
@@ -642,8 +657,17 @@ export function issueRoutes(db: Db, storage: StorageService) {
   router.post("/companies/:companyId/issues", validate(createIssueSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
+
+    // Role-based project access check for board users
+    if (req.actor.type === "board" && req.actor.source !== "local_implicit" && !req.actor.isInstanceAdmin && req.actor.userId) {
+      if (req.body.projectId) {
+        const canAccess = await roles.canAccessProject(companyId, req.actor.userId, req.body.projectId);
+        if (!canAccess) throw forbidden("No access to this project");
+      }
+    }
+
     if (req.body.assigneeAgentId || req.body.assigneeUserId) {
-      await assertCanAssignTasks(req, companyId);
+      await assertCanAssignTasks(req, companyId, req.body.assigneeAgentId);
     }
 
     const actor = getActorInfo(req);
@@ -703,7 +727,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
 
     if (assigneeWillChange) {
       if (!isCurrentAssigneeAgentHandoff) {
-        await assertCanAssignTasks(req, existing.companyId);
+        await assertCanAssignTasks(req, existing.companyId, req.body.assigneeAgentId);
       }
     }
     if (!(await assertAgentRunCheckoutOwnership(req, res, existing))) return;

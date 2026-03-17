@@ -186,6 +186,13 @@ export {
   claimJoinRequestApiKeySchema,
   updateMemberPermissionsSchema,
   updateUserCompanyAccessSchema,
+  approveJoinRequestSchema,
+  rolePermissionsSchema,
+  createCompanyRoleSchema,
+  updateCompanyRoleSchema,
+  assignMemberRoleSchema,
+  grantProjectAccessSchema,
+  grantAgentAccessSchema,
   type CreateCompanyInvite,
   type CreateOpenClawInvitePrompt,
   type AcceptInvite,
@@ -193,6 +200,12 @@ export {
   type ClaimJoinRequestApiKey,
   type UpdateMemberPermissions,
   type UpdateUserCompanyAccess,
+  type ApproveJoinRequest,
+  type CreateCompanyRole,
+  type UpdateCompanyRole,
+  type AssignMemberRole,
+  type GrantProjectAccess,
+  type GrantAgentAccess,
 } from "./access.js";
 
 export {

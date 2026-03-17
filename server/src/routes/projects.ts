@@ -8,13 +8,14 @@ import {
   updateProjectWorkspaceSchema,
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { projectService, logActivity } from "../services/index.js";
+import { projectService, logActivity, roleService } from "../services/index.js";
 import { conflict } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 
 export function projectRoutes(db: Db) {
   const router = Router();
   const svc = projectService(db);
+  const roles = roleService(db);
 
   async function resolveCompanyIdForProjectReference(req: Request) {
     const companyIdQuery = req.query.companyId;
@@ -55,7 +56,18 @@ export function projectRoutes(db: Db) {
   router.get("/companies/:companyId/projects", async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    const result = await svc.list(companyId);
+    let result = await svc.list(companyId);
+
+    // Filter by project access for role-based users
+    if (req.actor.type === "board" && req.actor.source !== "local_implicit" && !req.actor.isInstanceAdmin && req.actor.userId) {
+      const perms = await roles.getEffectivePermissions(companyId, req.actor.userId);
+      if (perms && perms.projects.access === "assigned") {
+        const grants = await roles.listUserProjectAccess(companyId, req.actor.userId);
+        const allowedIds = new Set(grants.map((g) => g.projectId));
+        result = result.filter((p) => allowedIds.has(p.id));
+      }
+    }
+
     res.json(result);
   });
 
