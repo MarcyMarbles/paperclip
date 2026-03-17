@@ -17,6 +17,8 @@ export const projects = pgTable(
     color: text("color"),
     issuePrefix: text("issue_prefix"),
     issueCounter: integer("issue_counter").notNull().default(0),
+    pauseReason: text("pause_reason"),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
     executionWorkspacePolicy: jsonb("execution_workspace_policy").$type<Record<string, unknown>>(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,4 +1,4 @@
-import type { ProjectStatus } from "../constants.js";
+import type { PauseReason, ProjectStatus } from "../constants.js";
 import type { ProjectExecutionWorkspacePolicy, WorkspaceRuntimeService } from "./workspace-runtime.js";
 
 export interface ProjectGoalRef {
@@ -37,6 +37,8 @@ export interface Project {
   color: string | null;
   issuePrefix: string | null;
   issueCounter: number;
+  pauseReason: PauseReason | null;
+  pausedAt: Date | null;
   executionWorkspacePolicy: ProjectExecutionWorkspacePolicy | null;
   workspaces: ProjectWorkspace[];
   primaryWorkspace: ProjectWorkspace | null;

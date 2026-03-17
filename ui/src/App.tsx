@@ -31,6 +31,9 @@ import { KillSwitch } from "./pages/KillSwitch";
 import { BuildDeploy } from "./pages/BuildDeploy";
 import { BuildDeployProject } from "./pages/BuildDeployProject";
 import { InstanceSettings } from "./pages/InstanceSettings";
+import { PluginManager } from "./pages/PluginManager";
+import { PluginSettings } from "./pages/PluginSettings";
+import { PluginPage } from "./pages/PluginPage";
 import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
 import { NewAgent } from "./pages/NewAgent";
@@ -127,6 +130,7 @@ function boardRoutes() {
       <Route path="company/kill-switch" element={<KillSwitch />} />
       <Route path="settings" element={<LegacySettingsRedirect />} />
       <Route path="settings/*" element={<LegacySettingsRedirect />} />
+      <Route path="plugins/:pluginId" element={<PluginPage />} />
       <Route path="org" element={<OrgChart />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
       <Route path="agents/all" element={<Agents />} />
@@ -145,6 +149,7 @@ function boardRoutes() {
       <Route path="projects/:projectId/git" element={<ProjectDetail />} />
       <Route path="projects/:projectId/builds" element={<ProjectDetail />} />
       <Route path="projects/:projectId/configuration" element={<ProjectDetail />} />
+      <Route path="projects/:projectId/budget" element={<ProjectDetail />} />
       <Route path="issues" element={<Issues />} />
       <Route path="issues/all" element={<Navigate to="/issues" replace />} />
       <Route path="issues/active" element={<Navigate to="/issues" replace />} />
@@ -167,6 +172,7 @@ function boardRoutes() {
       <Route path="inbox/new" element={<Navigate to="/inbox/recent" replace />} />
       <Route path="design-guide" element={<DesignGuide />} />
       <Route path="tests/ux/runs" element={<RunTranscriptUxLab />} />
+      <Route path=":pluginRoutePath" element={<PluginPage />} />
       <Route path="*" element={<NotFoundPage scope="board" />} />
     </>
   );
@@ -178,7 +184,7 @@ function InboxRootRedirect() {
 
 function LegacySettingsRedirect() {
   const location = useLocation();
-  return <Navigate to={`/instance/settings${location.search}${location.hash}`} replace />;
+  return <Navigate to={`/instance/settings/heartbeats${location.search}${location.hash}`} replace />;
 }
 
 function OnboardingRoutePage() {
@@ -311,9 +317,12 @@ export function App() {
         <Route element={<CloudAccessGate />}>
           <Route index element={<CompanyRootRedirect />} />
           <Route path="onboarding" element={<OnboardingRoutePage />} />
-          <Route path="instance" element={<Navigate to="/instance/settings" replace />} />
+          <Route path="instance" element={<Navigate to="/instance/settings/heartbeats" replace />} />
           <Route path="instance/settings" element={<Layout />}>
-            <Route index element={<InstanceSettings />} />
+            <Route index element={<Navigate to="heartbeats" replace />} />
+            <Route path="heartbeats" element={<InstanceSettings />} />
+            <Route path="plugins" element={<PluginManager />} />
+            <Route path="plugins/:pluginId" element={<PluginSettings />} />
           </Route>
           <Route path="companies" element={<UnprefixedBoardRedirect />} />
           <Route path="issues" element={<UnprefixedBoardRedirect />} />
