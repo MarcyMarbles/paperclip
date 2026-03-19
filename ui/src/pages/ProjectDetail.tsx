@@ -12,6 +12,7 @@ import { mcpServersApi } from "../api/mcpServers";
 import { assetsApi } from "../api/assets";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
+import { useToast } from "../context/ToastContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { ProjectProperties, type ProjectConfigFieldKey, type ProjectFieldSaveState } from "../components/ProjectProperties";
@@ -320,6 +321,7 @@ export function ProjectDetail() {
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { closePanel } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { pushToast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -394,11 +396,21 @@ export function ProjectDetail() {
         { archivedAt: archived ? new Date().toISOString() : null },
         resolvedCompanyId ?? lookupCompanyId,
       ),
-    onSuccess: (_, archived) => {
+    onSuccess: (updatedProject, archived) => {
       invalidateProject();
+      const name = updatedProject?.name ?? project?.name ?? "Project";
       if (archived) {
-        navigate("/projects");
+        pushToast({ title: `"${name}" has been archived`, tone: "success" });
+        navigate("/dashboard");
+      } else {
+        pushToast({ title: `"${name}" has been unarchived`, tone: "success" });
       }
+    },
+    onError: (_, archived) => {
+      pushToast({
+        title: archived ? "Failed to archive project" : "Failed to unarchive project",
+        tone: "error",
+      });
     },
   });
 
@@ -561,8 +573,24 @@ export function ProjectDetail() {
     return <Navigate to={`/projects/${canonicalProjectRef}/issues`} replace />;
   }
 
-  // Redirect bare /projects/:id to /projects/:id/issues
+  // Redirect bare /projects/:id to cached tab or default /issues
   if (routeProjectRef && activeTab === null) {
+    let cachedTab: string | null = null;
+    if (project?.id) {
+      try { cachedTab = localStorage.getItem(`paperclip:project-tab:${project.id}`); } catch {}
+    }
+    if (cachedTab === "overview") {
+      return <Navigate to={`/projects/${canonicalProjectRef}/overview`} replace />;
+    }
+    if (cachedTab === "configuration") {
+      return <Navigate to={`/projects/${canonicalProjectRef}/configuration`} replace />;
+    }
+    if (cachedTab === "budget") {
+      return <Navigate to={`/projects/${canonicalProjectRef}/budget`} replace />;
+    }
+    if (isProjectPluginTab(cachedTab)) {
+      return <Navigate to={`/projects/${canonicalProjectRef}?tab=${encodeURIComponent(cachedTab)}`} replace />;
+    }
     return <Navigate to={`/projects/${canonicalProjectRef}/issues`} replace />;
   }
 
@@ -571,6 +599,10 @@ export function ProjectDetail() {
   if (!project) return null;
 
   const handleTabChange = (tab: ProjectTab) => {
+    // Cache the active tab per project
+    if (project?.id) {
+      try { localStorage.setItem(`paperclip:project-tab:${project.id}`, tab); } catch {}
+    }
     if (isProjectPluginTab(tab)) {
       navigate(`/projects/${canonicalProjectRef}?tab=${encodeURIComponent(tab)}`);
       return;
@@ -651,8 +683,8 @@ export function ProjectDetail() {
       <Tabs value={activeTab ?? "list"} onValueChange={(value) => handleTabChange(value as ProjectTab)}>
         <PageTabBar
           items={[
+            { value: "list", label: "Issues" },
             { value: "overview", label: "Overview" },
-            { value: "list", label: "List" },
             ...(hasGitWorkspaces ? [{ value: "git", label: "Git" }] : []),
             ...(hasGitWorkspaces ? [{ value: "builds", label: "Build & Deploy" }] : []),
             { value: "configuration", label: "Configuration" },

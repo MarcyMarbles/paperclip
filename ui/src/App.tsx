@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { Projects } from "./pages/Projects";
 import { ProjectDetail } from "./pages/ProjectDetail";
 import { Issues } from "./pages/Issues";
 import { IssueDetail } from "./pages/IssueDetail";
+import { ExecutionWorkspaceDetail } from "./pages/ExecutionWorkspaceDetail";
 import { Goals } from "./pages/Goals";
 import { GoalDetail } from "./pages/GoalDetail";
 import { Approvals } from "./pages/Approvals";
@@ -32,6 +32,7 @@ import { BuildDeploy } from "./pages/BuildDeploy";
 import { BuildDeployProject } from "./pages/BuildDeployProject";
 import { InstanceSettings } from "./pages/InstanceSettings";
 import { InstanceUsers } from "./pages/InstanceUsers";
+import { InstanceExperimentalSettings } from "./pages/InstanceExperimentalSettings";
 import { PluginManager } from "./pages/PluginManager";
 import { PluginSettings } from "./pages/PluginSettings";
 import { PluginPage } from "./pages/PluginPage";
@@ -47,6 +48,7 @@ import { queryKeys } from "./lib/queryKeys";
 import { useCompany } from "./context/CompanyContext";
 import { useDialog } from "./context/DialogContext";
 import { loadLastInboxTab } from "./lib/inbox";
+import { shouldRedirectCompanylessRouteToOnboarding } from "./lib/onboarding-route";
 
 function BootstrapPendingPage({ hasActiveInvite = false }: { hasActiveInvite?: boolean }) {
   return (
@@ -160,6 +162,7 @@ function boardRoutes() {
       <Route path="issues/done" element={<Navigate to="/issues" replace />} />
       <Route path="issues/recent" element={<Navigate to="/issues" replace />} />
       <Route path="issues/:issueId" element={<IssueDetail />} />
+      <Route path="execution-workspaces/:workspaceId" element={<ExecutionWorkspaceDetail />} />
       <Route path="goals" element={<Goals />} />
       <Route path="goals/:goalId" element={<GoalDetail />} />
       <Route path="approvals" element={<Navigate to="/approvals/pending" replace />} />
@@ -191,23 +194,12 @@ function LegacySettingsRedirect() {
 }
 
 function OnboardingRoutePage() {
-  const { companies, loading } = useCompany();
-  const { onboardingOpen, openOnboarding } = useDialog();
+  const { companies } = useCompany();
+  const { openOnboarding } = useDialog();
   const { companyPrefix } = useParams<{ companyPrefix?: string }>();
-  const opened = useRef(false);
   const matchedCompany = companyPrefix
     ? companies.find((company) => company.issuePrefix.toUpperCase() === companyPrefix.toUpperCase()) ?? null
     : null;
-
-  useEffect(() => {
-    if (loading || opened.current || onboardingOpen) return;
-    opened.current = true;
-    if (matchedCompany) {
-      openOnboarding({ initialStep: 2, companyId: matchedCompany.id });
-      return;
-    }
-    openOnboarding();
-  }, [companyPrefix, loading, matchedCompany, onboardingOpen, openOnboarding]);
 
   const title = matchedCompany
     ? `Add another agent to ${matchedCompany.name}`
@@ -243,19 +235,22 @@ function OnboardingRoutePage() {
 
 function CompanyRootRedirect() {
   const { companies, selectedCompany, loading } = useCompany();
-  const { onboardingOpen } = useDialog();
+  const location = useLocation();
 
   if (loading) {
     return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
   }
 
-  // Keep the first-run onboarding mounted until it completes.
-  if (onboardingOpen) {
-    return <NoCompaniesStartPage autoOpen={false} />;
-  }
-
   const targetCompany = selectedCompany ?? companies[0] ?? null;
   if (!targetCompany) {
+    if (
+      shouldRedirectCompanylessRouteToOnboarding({
+        pathname: location.pathname,
+        hasCompanies: false,
+      })
+    ) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <NoCompaniesStartPage />;
   }
 
@@ -272,6 +267,14 @@ function UnprefixedBoardRedirect() {
 
   const targetCompany = selectedCompany ?? companies[0] ?? null;
   if (!targetCompany) {
+    if (
+      shouldRedirectCompanylessRouteToOnboarding({
+        pathname: location.pathname,
+        hasCompanies: false,
+      })
+    ) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <NoCompaniesStartPage />;
   }
 
@@ -283,16 +286,8 @@ function UnprefixedBoardRedirect() {
   );
 }
 
-function NoCompaniesStartPage({ autoOpen = true }: { autoOpen?: boolean }) {
+function NoCompaniesStartPage() {
   const { openOnboarding } = useDialog();
-  const opened = useRef(false);
-
-  useEffect(() => {
-    if (!autoOpen) return;
-    if (opened.current) return;
-    opened.current = true;
-    openOnboarding();
-  }, [autoOpen, openOnboarding]);
 
   return (
     <div className="mx-auto max-w-xl py-10">
@@ -325,6 +320,7 @@ export function App() {
             <Route index element={<Navigate to="heartbeats" replace />} />
             <Route path="heartbeats" element={<InstanceSettings />} />
             <Route path="users" element={<InstanceUsers />} />
+            <Route path="experimental" element={<InstanceExperimentalSettings />} />
             <Route path="plugins" element={<PluginManager />} />
             <Route path="plugins/:pluginId" element={<PluginSettings />} />
           </Route>
